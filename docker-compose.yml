@@ -1,0 +1,46 @@
+version: '3.8'
+
+services:
+  postgres:
+    image: postgres:15-alpine
+    container_name: mlm_crm_postgres
+    restart: always
+    environment:
+      POSTGRES_USER: ${POSTGRES_USER:-postgres}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-postgres}
+      POSTGRES_DB: ${POSTGRES_DB:-mlm_crm}
+    ports:
+      - "5432:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+
+  whatsapp-service:
+    build: ./whatsapp-service
+    container_name: mlm_crm_whatsapp
+    restart: always
+    environment:
+      PORT: 3001
+      WEBHOOK_URL: http://app:3000/api/webhooks/whatsapp
+    ports:
+      - "3001:3001"
+    volumes:
+      - whatsapp_auth:/app/auth_info_baileys
+
+  app:
+    build: .
+    container_name: mlm_crm_app
+    restart: always
+    environment:
+      DATABASE_URL: postgres://${POSTGRES_USER:-postgres}:${POSTGRES_PASSWORD:-postgres}@postgres:5432/${POSTGRES_DB:-mlm_crm}
+      NEXTAUTH_URL: ${NEXTAUTH_URL:-http://localhost:3000}
+      NEXTAUTH_SECRET: ${NEXTAUTH_SECRET}
+      WHATSAPP_API_URL: http://whatsapp-service:3001
+    ports:
+      - "3000:3000"
+    depends_on:
+      - postgres
+      - whatsapp-service
+
+volumes:
+  postgres_data:
+  whatsapp_auth:

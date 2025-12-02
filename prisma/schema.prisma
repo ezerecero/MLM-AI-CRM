@@ -1,0 +1,153 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+enum Role {
+  AGENT
+  SUPER_ADMIN
+}
+
+enum PipelineStage {
+  NEW_LEAD
+  CONTACTED
+  IN_CONVERSATION
+  PRESENTATION_SENT
+  CLOSING
+  ASKED_FOR_TIME
+  POST_SALE_FOLLOWUP
+}
+
+enum MessageType {
+  TEXT
+  IMAGE
+  AUDIO
+  PDF
+}
+
+enum MessageSender {
+  USER
+  CONTACT
+  AI
+}
+
+enum ContactTemperature {
+  COLD
+  WARM
+  HOT
+  CLIENT
+  RETENTION
+}
+
+model User {
+  id            String    @id @default(cuid())
+  email         String    @unique
+  password      String?   // Hashed
+  name          String?
+  companyName   String?
+  role          Role      @default(AGENT)
+  createdAt     DateTime  @default(now())
+  updatedAt     DateTime  @updatedAt
+  
+  // Subscription & Limits
+  subscriptionStatus String   @default("ACTIVE") // ACTIVE, PAST_DUE, CANCELED
+  aiBudgetCap        Float    @default(3.00)
+  aiBudgetUsed       Float    @default(0.00)
+  
+  // Relations
+  contacts      Contact[]
+  messages      Message[]
+  tasks         Task[]
+  aiSettings    AISettings?
+  pipelines     Pipeline[]
+}
+
+model Contact {
+  id            String    @id @default(cuid())
+  userId        String
+  user          User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  
+  name          String
+  phone         String    // E.164 format
+  email         String?
+  relationType  String?   // Editable list
+  source        String?   // Editable list
+  
+  // The 3 Pillars
+  hasConfidence Boolean   @default(false)
+  hasPower      Boolean   @default(false)
+  hasCredibility Boolean  @default(false)
+  
+  pipelineStage PipelineStage @default(NEW_LEAD)
+  temperature   ContactTemperature @default(COLD)
+  
+  createdAt     DateTime  @default(now())
+  updatedAt     DateTime  @updatedAt
+  
+  messages      Message[]
+  tasks         Task[]
+
+  @@unique([userId, phone])
+}
+
+model Message {
+  id            String    @id @default(cuid())
+  userId        String
+  user          User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  contactId     String
+  contact       Contact   @relation(fields: [contactId], references: [id], onDelete: Cascade)
+  
+  content       String
+  type          MessageType @default(TEXT)
+  sender        MessageSender
+  
+  whatsappId    String?   @unique // ID from Baileys
+  
+  createdAt     DateTime  @default(now())
+}
+
+model Task {
+  id            String    @id @default(cuid())
+  userId        String
+  user          User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  contactId     String?
+  contact       Contact?  @relation(fields: [contactId], references: [id])
+  
+  title         String
+  description   String?
+  dueDate       DateTime?
+  completed     Boolean   @default(false)
+  
+  isAiSuggested Boolean   @default(false)
+  
+  createdAt     DateTime  @default(now())
+  updatedAt     DateTime  @updatedAt
+}
+
+model AISettings {
+  id            String    @id @default(cuid())
+  userId        String    @unique
+  user          User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  
+  providerHierarchy String[] // ["DEEPSEEK", "OPENAI", "GROQ"]
+  mode              String   @default("AUTHORIZATION") // AUTOMATIC, AUTHORIZATION, SUGGESTION
+  
+  createdAt     DateTime  @default(now())
+  updatedAt     DateTime  @updatedAt
+}
+
+model Pipeline {
+  id            String    @id @default(cuid())
+  userId        String
+  user          User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  
+  name          String
+  stages        String[]  // JSON array of stage names if custom
+  
+  createdAt     DateTime  @default(now())
+  updatedAt     DateTime  @updatedAt
+}
