@@ -23,6 +23,11 @@
     ```bash
     cp .env.example .env
     ```
+    **Required Variables:**
+    - `DATABASE_URL`: Connection string for PostgreSQL.
+    - `NEXTAUTH_SECRET`: Random string for session encryption.
+    - `OPENAI_API_KEY`: For AI features.
+    - `WHATSAPP_API_URL`: URL of the WhatsApp service (default: http://localhost:3001).
 
 4.  **Start Database & Services:**
     ```bash
